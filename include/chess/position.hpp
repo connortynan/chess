@@ -74,7 +74,6 @@ namespace chess
         bool validate_occupancy() const;
         bool king_checked(Color us) const;
 
-    private:
         inline u64 get_piece_bb(Color c, PieceType pt) const { return pieces[static_cast<u8>(c)][static_cast<u8>(pt)]; }
         inline bool is_occupied(u8 square) const { return all_occupancy & (1ULL << square); }
         inline bool is_occupied(Color c, u8 square) const { return occupancy[static_cast<u8>(c)] & (1ULL << square); }
