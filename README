@@ -13,8 +13,6 @@ Fully functional 2 player chess, with ncurses UI.
 
 ## Todo
  - Engine
- - Help page
- - Promotion handling (it might be undefined rn)
  - Offer Draw and Resign
  - Bug fix probably
 
