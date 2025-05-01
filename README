@@ -1,0 +1,37 @@
+# chess - Connor Tynan (ctynan)
+
+## About
+
+Fully functional 2 player chess, with ncurses UI.
+
+## Controls
+ - Move around with `WASD`, arrow keys, or vim controls (`HJKL`)
+ - Select with `Enter` or `Space`
+ - Deselect with `Delete`, `Backspace` (or select an invalid square)
+ - `Shift+F` to flip board
+ - `Shift+Q`
+
+## Todo
+ - Engine
+ - Help page
+ - Promotion handling (it might be undefined rn)
+ - Offer Draw and Resign
+ - Bug fix probably
+
+---
+
+## Build instruction
+```bash
+# navigate to root direcotry (with Makefile)
+make
+```
+
+## Usage
+```bash
+bin/chess-engine
+```
+
+## Uninstall
+```bash
+make clean
+```

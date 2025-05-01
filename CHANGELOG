@@ -1,0 +1,22 @@
+## Most recent at top
+
+4/30/25, 12:30 PM:
+    - Added move list and material counts to sidebar
+
+4/29/25, 3:00 AM:
+    - Bug tested move gen (found bug in castling rights)
+
+4/28/25, 10:00 PM:
+    - Finished move generation
+
+4/26/25, 9:30 PM:
+    - Finished psuedo-legal move generation
+
+4/24/25, 3:00 PM:
+    - Finished position and game methods beside move generation
+
+4/22/25, 1:00 PM:
+    - Redid position represenation with bitboards (for SPEED)
+
+4/22/25, 1:00 AM:
+    - Finished initial layout for chess positions
