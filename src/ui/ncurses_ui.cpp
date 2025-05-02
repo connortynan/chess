@@ -10,7 +10,7 @@
 #include "engine/engine.hpp"
 #include "commands.hpp"
 
-static constexpr int ENGINE_DEPTH = 6;
+static constexpr int ENGINE_DEPTH = 7;
 
 namespace ui
 {
@@ -714,7 +714,7 @@ namespace ui
             state.draw_sidebar();
             doupdate();
             int eval = 0;
-            chess::Move engine_move = chess::engine::solve(state.game->position, ENGINE_DEPTH, &eval);
+            chess::Move engine_move = chess::engine::solve(*state.game, ENGINE_DEPTH, &eval);
             if (!engine_move)
             {
                 state.status = "Engine error!";

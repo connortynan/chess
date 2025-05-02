@@ -1,13 +1,13 @@
 #pragma once
 
-#include "chess/position.hpp"
+#include "chess/game.hpp"
 
 namespace chess
 {
     namespace engine
     {
 
-        Move solve(const Position &pos, int depth, int *eval_centipawns = nullptr);
+        Move solve(Game &game, int depth, int *eval_centipawns = nullptr);
 
     } // namespace engine
 } // namespace chess

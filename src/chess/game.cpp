@@ -6,14 +6,11 @@ namespace chess
 {
     void Game::make_move(Move m)
     {
-        // Save current state for undo
         UndoState undo;
-
         position.make_move(m, undo);
-
-        // Push undo and move
         history.push_back(undo);
         moves.push_back(m);
+        seen_positions[position.hash()]++;
     }
 
     std::size_t Game::get_moves(Move *moves)
@@ -27,11 +24,10 @@ namespace chess
     {
         if (history.empty())
             return;
-
+        seen_positions[position.hash()]--;
         UndoState undo = history.back();
         history.pop_back();
         moves.pop_back();
-
         position.undo_move(undo);
     }
 
@@ -42,4 +38,19 @@ namespace chess
         history.clear();
         moves.clear();
     }
+
+    bool Game::is_draw() const
+    {
+        // 50-move rule
+        if (position.halfmove_clock >= 100)
+            return true;
+
+        // Threefold repetition
+        auto it = seen_positions.find(position.hash());
+        if (it != seen_positions.end() && it->second >= 3)
+            return true;
+
+        return false;
+    }
+
 }

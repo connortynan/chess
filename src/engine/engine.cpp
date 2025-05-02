@@ -46,10 +46,14 @@ namespace chess
             return score;
         }
 
-        static int negamax(Position &pos, int depth, int alpha, int beta)
+        static int negamax(Game &game, int depth, int alpha, int beta)
         {
+            Position &pos = game.position;
+
             if (depth == 0)
                 return (pos.turn() == Color::WHITE) ? eval(pos) : -eval(pos);
+            if (game.is_draw())
+                return DRAW_SCORE;
 
             Move moves[256];
             std::size_t n_moves = get_moves(pos, moves);
@@ -79,12 +83,9 @@ namespace chess
 
             for (const auto &[move, _] : sorted_moves)
             {
-                UndoState undo;
-                pos.make_move(move, undo);
-
-                int score = -negamax(pos, depth - 1, -beta, -alpha);
-
-                pos.undo_move(undo);
+                game.make_move(move);
+                int score = -negamax(game, depth - 1, -beta, -alpha);
+                game.undo_move();
 
                 if (score > max_eval)
                     max_eval = score;
@@ -97,11 +98,10 @@ namespace chess
             return max_eval;
         }
 
-        Move solve(const Position &pos_in, int depth, int *eval_centipawns)
+        Move solve(Game &game, int depth, int *eval_centipawns)
         {
-            Position pos = pos_in; // Make a copy for mutation
             Move moves[256];
-            std::size_t n_moves = get_moves(pos, moves);
+            std::size_t n_moves = get_moves(game.position, moves);
 
             Move best_move = 0;
             int best_score = -INF;
@@ -109,12 +109,9 @@ namespace chess
 
             for (std::size_t i = 0; i < n_moves; ++i)
             {
-                UndoState undo;
-                pos.make_move(moves[i], undo);
-
-                int score = -negamax(pos, depth - 1, -beta, -alpha);
-
-                pos.undo_move(undo);
+                game.make_move(moves[i]);
+                int score = -negamax(game, depth - 1, -beta, -alpha);
+                game.undo_move();
 
                 if (score > best_score)
                 {

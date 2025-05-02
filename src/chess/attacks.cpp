@@ -158,6 +158,11 @@ namespace chess
         }
     }
 
+    static struct AttackInit
+    {
+        AttackInit() { init_attacks(); }
+    } _attack_init; // to ensure attacks are initialized
+
     void Position::compute_attacks()
     {
         attacks[0] = 0;
