@@ -49,7 +49,7 @@ namespace chess
         static int negamax(Position &pos, int depth, int alpha, int beta)
         {
             if (depth == 0)
-                return eval(pos);
+                return (pos.turn() == Color::WHITE) ? eval(pos) : -eval(pos);
 
             Move moves[256];
             std::size_t n_moves = get_moves(pos, moves);
@@ -57,7 +57,7 @@ namespace chess
             if (n_moves == 0)
             {
                 if (pos.king_checked(pos.turn()))
-                    return -MATE_SCORE + depth;
+                    return -MATE_SCORE - depth;
                 else
                     return DRAW_SCORE;
             }
@@ -79,7 +79,6 @@ namespace chess
 
             for (const auto &[move, _] : sorted_moves)
             {
-
                 UndoState undo;
                 pos.make_move(move, undo);
 
@@ -98,7 +97,7 @@ namespace chess
             return max_eval;
         }
 
-        Move solve(const Position &pos_in, int depth, int *eval_cp)
+        Move solve(const Position &pos_in, int depth, int *eval_centipawns)
         {
             Position pos = pos_in; // Make a copy for mutation
             Move moves[256];
@@ -127,8 +126,8 @@ namespace chess
                     alpha = score;
             }
 
-            if (eval_cp)
-                *eval_cp = best_score;
+            if (eval_centipawns)
+                *eval_centipawns = best_score;
 
             return best_move;
         }

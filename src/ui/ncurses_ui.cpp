@@ -7,7 +7,10 @@
 
 #include "chess/inttypes.hpp"
 #include "chess/position.hpp"
+#include "engine/engine.hpp"
 #include "commands.hpp"
+
+static constexpr int ENGINE_DEPTH = 6;
 
 namespace ui
 {
@@ -87,20 +90,26 @@ namespace ui
         int cursor_square = 0;
         int selected_square = -1;
         int check_square = -1;
+        int last_move_from = -1;
+        int last_move_to = -1;
 
         int term_x = 0;
         int term_y = 0;
 
         bool running = true;
-        std::string final_message = "";
+        std::string status = "";
+
+        bool white_engine = false;
+        bool black_engine = false;
 
         enum Mode
         {
+            MD_STARTUP,
             MD_SELECT,
             MD_SHOW_MOVES,
-            MD_DIALOGUE,
+            MD_GAME_OVER,
             MD_HELP,
-        } mode;
+        } mode = MD_STARTUP;
 
         Mode last_mode;
 
@@ -291,14 +300,15 @@ namespace ui
 
             // Frame top
             mvwhline(sidebar, y++, 1, 0, WINDOW_SIZES[W_SIDEBAR][1] - 2);
-            mvwprintw(sidebar, y++, 1, " connor's chess game ");
-
+            wattron(sidebar, A_REVERSE);
+            mvwprintw(sidebar, y++, WINDOW_SIZES[W_SIDEBAR][1] / 2 - 4, " chess ");
             mvwprintw(sidebar, y++, 1, "Press '?' for controls");
+            wattroff(sidebar, A_REVERSE);
             mvwprintw(sidebar, y++, 1, "Turn: %s", game->position.turn() == chess::Color::WHITE ? "White" : "Black");
 
             y++; // Spacer
 
-            int available_space = WINDOW_SIZES[W_SIDEBAR][0] - 9;
+            int available_space = WINDOW_SIZES[W_SIDEBAR][0] - 10;
             int move_lines = (move_text.size() + 1) / 2;
             int first_move = std::max(0, move_lines - available_space);
 
@@ -309,9 +319,12 @@ namespace ui
 
                 mvwprintw(sidebar, y++, 1, "%3d: %-7s %-7s", i + 1, white_move.c_str(), black_move.c_str());
             }
+            y = 21;
+
+            // Status message
+            mvwprintw(sidebar, y++, 1, "%-22s", status.c_str());
 
             // Bottom material
-            y = 22;
             mvwhline(sidebar, y++, 1, 0, WINDOW_SIZES[W_SIDEBAR][1] - 2);
             mvwprintw(sidebar, y, 1, "%-18s %+3d", black_mat.c_str(), -eval);
 
@@ -327,9 +340,9 @@ namespace ui
             int y = 0;
 
             mvwprintw(dialogue, y++, 1, " Help Menu ");
-            wattron(dialogue, A_BOLD);
+            wattron(dialogue, A_REVERSE);
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Command", "Key(s)");
-            wattroff(dialogue, A_BOLD);
+            wattroff(dialogue, A_REVERSE);
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Movement", "h/j/k/l or arrow keys");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Select", "space or enter");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Cancel", "backspace/delete");
@@ -341,12 +354,94 @@ namespace ui
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Underpromotion", "Ctrl+Space");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Quit", "Q");
             y++;
-            wattron(dialogue, A_BOLD);
+            wattron(dialogue, A_REVERSE);
             mvwprintw(dialogue, y, 1, " Press [Cancel] key to return ");
-            wattroff(dialogue, A_BOLD);
+            wattroff(dialogue, A_REVERSE);
 
             wnoutrefresh(dialogue);
             doupdate();
+        }
+
+        void do_startup()
+        {
+            WINDOW *dialogue = windows[W_DIALOGUE];
+            werase(dialogue);
+            box(dialogue, 0, 0);
+
+            mvwprintw(dialogue, 0, 1, " Chess ");
+
+            wattron(dialogue, A_BOLD);
+            mvwprintw(dialogue, 2, 2, "Choose Game Mode");
+            wattroff(dialogue, A_BOLD);
+
+            mvwprintw(dialogue, 3, 4, "[1] Player vs Player");
+            mvwprintw(dialogue, 4, 4, "[2] Player vs Engine");
+            mvwprintw(dialogue, 5, 4, "[3] Engine vs Engine");
+            mvwprintw(dialogue, 6, 2, "Press number to continue...");
+
+            wnoutrefresh(dialogue);
+            doupdate();
+
+            while (true)
+            {
+                int ch = getch();
+                switch (ch)
+                {
+                case '1': // player vs player
+                    white_engine = false;
+                    black_engine = false;
+                    return;
+                case '2': // player vs engine
+                    white_engine = true;
+                    black_engine = true;
+                    goto find_player_color;
+                case '3': // engine vs engine
+                    white_engine = true;
+                    black_engine = true;
+                    return;
+                default:
+                    beep();
+                    break; // continue loop
+                }
+            }
+
+        find_player_color:
+            mvwprintw(dialogue, 2, 2, "Choose Game Mode");
+            mvwprintw(dialogue, 6, 2, "                             "); // clear previous text
+
+            wattron(dialogue, A_REVERSE);
+            mvwprintw(dialogue, 4, 4, "[2] Player vs Engine");
+            wattroff(dialogue, A_REVERSE);
+
+            wattron(dialogue, A_BOLD);
+            mvwprintw(dialogue, 8, 2, "Choose player color");
+            wattroff(dialogue, A_BOLD);
+
+            mvwprintw(dialogue, 9, 4, "[w] White");
+            mvwprintw(dialogue, 10, 4, "[b] Black");
+            mvwprintw(dialogue, 11, 2, "Press key to confirm...");
+
+            wnoutrefresh(dialogue);
+            doupdate();
+
+            while (true)
+            {
+                int ch = getch();
+                switch (ch)
+                {
+                case 'w':
+                case 'W':
+                    white_engine = false;
+                    return;
+                case 'b':
+                case 'B':
+                    black_engine = false;
+                    return;
+                default:
+                    beep();
+                    break; // continue loop
+                }
+            }
         }
 
         char get_underpromotion_choice()
@@ -480,23 +575,15 @@ namespace ui
         return state.running;
     }
 
+    static bool engine_turn();
     void display()
     {
-        if (!state.running)
-        {
-            if (!state.final_message.empty())
-            {
-                state.draw_board();
-                state.draw_sidebar();
-                mvwprintw(state.windows[W_SIDEBAR], 23, 1, "%s", state.final_message.c_str());
-                wrefresh(state.windows[W_SIDEBAR]);
-                getch();
-            }
-            return;
-        }
-
         switch (state.mode)
         {
+        case State::MD_STARTUP:
+            state.do_startup();
+            state.mode = State::MD_SELECT;
+            break;
         case State::MD_SELECT:
             for (int sq = 0; sq < 64; ++sq)
             {
@@ -504,7 +591,13 @@ namespace ui
             }
             if (state.check_square >= 0)
                 state.highlight_square(state.check_square, color_pairs::TINT_RED);
-            state.highlight_square(state.cursor_square, color_pairs::TINT_GREEN);
+            if (state.last_move_from >= 0)
+                state.highlight_square(state.last_move_from, color_pairs::TINT_YELLOW);
+            if (state.last_move_to >= 0)
+                state.highlight_square(state.last_move_to, color_pairs::TINT_YELLOW);
+
+            if (!((state.game->position.turn() == chess::Color::WHITE) ? state.white_engine : state.black_engine))
+                state.highlight_square(state.cursor_square, color_pairs::TINT_GREEN);
 
             state.draw_sidebar();
             state.draw_board();
@@ -528,9 +621,16 @@ namespace ui
             state.draw_sidebar();
             state.draw_board();
             break;
-        case State::MD_DIALOGUE:
-            // todo
+
+        case State::MD_GAME_OVER:
+            state.draw_sidebar();
+            state.draw_board();
+            wattron(state.windows[W_SIDEBAR], A_REVERSE);
+            mvwprintw(state.windows[W_SIDEBAR], 3, 1, "Press Q to quit        ");
+            wattroff(state.windows[W_SIDEBAR], A_REVERSE);
+            wnoutrefresh(state.windows[W_SIDEBAR]);
             break;
+
         case State::MD_HELP:
             state.draw_help();
             break;
@@ -545,6 +645,12 @@ namespace ui
     static void handle_input(int ch);
     void wait_for_input()
     {
+        if (state.mode == State::MD_SELECT && engine_turn())
+        {
+            display();
+            return;
+        }
+
         while (true)
         {
             int ch = getch();
@@ -586,10 +692,51 @@ namespace ui
         }
 
         state.move_text.push_back(move_text);
+        state.last_move_from = chess::move::from(m);
+        state.last_move_to = chess::move::to(m);
 
         state.update();
 
         return state.move_count > 0;
+    }
+
+    static bool engine_turn()
+    {
+        auto turn = state.game->position.turn();
+        if ((turn == chess::Color::WHITE && state.white_engine) ||
+            (turn == chess::Color::BLACK && state.black_engine))
+        {
+            state.status = "Engine thinking...";
+            state.draw_sidebar();
+            doupdate();
+            int eval = 0;
+            chess::Move engine_move = chess::engine::solve(state.game->position, ENGINE_DEPTH, &eval);
+            if (!engine_move)
+            {
+                state.status = "Engine error!";
+                state.mode = State::MD_GAME_OVER;
+                return false;
+            }
+
+            if (!make_move(engine_move))
+            {
+                state.mode = State::MD_GAME_OVER;
+                bool check = state.game->position.king_checked(state.game->position.turn());
+                state.status = check
+                                   ? (state.game->position.turn() == chess::Color::WHITE
+                                          ? "Checkmate! Black wins!"
+                                          : "Checkmate! White wins!")
+                                   : "Stalemate!";
+                display();
+                return false;
+            }
+
+            state.status.clear();
+            state.update();
+            return true;
+        }
+
+        return false;
     }
 
     static void handle_input(int ch)
@@ -604,33 +751,35 @@ namespace ui
 
         case CMD_UP:
         case CMD_DOWN:
-            if (state.mode == State::MD_DIALOGUE || state.mode == State::MD_HELP)
-                break;
-
-            if ((cmd == CMD_UP) ^ state.flip_board)
+            if (state.mode != State::MD_SELECT || state.mode != State::MD_SHOW_MOVES)
             {
-                if (state.cursor_square < 56)
-                    state.cursor_square += 8;
+                if ((cmd == CMD_UP) ^ state.flip_board)
+                {
+                    if (state.cursor_square < 56)
+                        state.cursor_square += 8;
+                }
+                else
+                {
+                    if (state.cursor_square >= 8)
+                        state.cursor_square -= 8;
+                }
             }
-            else
-            {
-                if (state.cursor_square >= 8)
-                    state.cursor_square -= 8;
-            }
-
             break;
+
         case CMD_LEFT:
-            if (state.mode == State::MD_DIALOGUE || state.mode == State::MD_HELP)
-                break;
-            if (state.cursor_square % 8 != 0)
-                state.cursor_square -= 1;
+            if (state.mode != State::MD_SELECT || state.mode != State::MD_SHOW_MOVES)
+            {
+                if (state.cursor_square % 8 != 0)
+                    state.cursor_square -= 1;
+            }
             break;
 
         case CMD_RIGHT:
-            if (state.mode == State::MD_DIALOGUE || state.mode == State::MD_HELP)
-                break;
-            if (state.cursor_square % 8 != 7)
-                state.cursor_square += 1;
+            if (state.mode != State::MD_SELECT || state.mode != State::MD_SHOW_MOVES)
+            {
+                if (state.cursor_square % 8 != 7)
+                    state.cursor_square += 1;
+            }
             break;
 
         case CMD_HELP:
@@ -695,13 +844,13 @@ namespace ui
 
             if (!make_move(m))
             {
-                state.running = false;
+                state.mode = State::MD_GAME_OVER;
                 bool check = state.game->position.king_checked(state.game->position.turn());
-                state.final_message = check
-                                          ? (state.game->position.turn() == chess::Color::WHITE
-                                                 ? "Checkmate! White wins!"
-                                                 : "Checkmate! Black wins!")
-                                          : "Stalemate!";
+                state.status = check
+                                   ? (state.game->position.turn() == chess::Color::WHITE
+                                          ? "Checkmate! Black wins!"
+                                          : "Checkmate! White wins!")
+                                   : "Stalemate!";
             }
             state.update();
         }
@@ -720,9 +869,10 @@ namespace ui
             break;
 
         case CMD_FLIP_BOARD:
-            if (state.mode == State::MD_DIALOGUE || state.mode == State::MD_HELP)
-                break;
-            state.flip_board = !state.flip_board;
+            if (state.mode != State::MD_HELP)
+            {
+                state.flip_board = !state.flip_board;
+            }
             break;
         case CMD_UNDO:
             // todo
