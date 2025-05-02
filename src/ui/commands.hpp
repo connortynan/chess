@@ -24,8 +24,6 @@ namespace ui
 
         // game commands
         CMD_UNDERPROMOTION, // ctrl+space: ch=0
-        CMD_RESIGN,         // 'R'
-        CMD_OFFER_DRAW,     // 'O', '='
 
         // ui commands
         CMD_FLIP_BOARD,  // 'F'
@@ -80,11 +78,6 @@ namespace ui
             return CMD_NO;
 
         // game-specific
-        case 'R':
-            return CMD_RESIGN;
-        case 'O':
-        case '=':
-            return CMD_OFFER_DRAW;
         case 0: // ctrl+space (often interpreted as NUL, may be nonportable)
             return CMD_UNDERPROMOTION;
 

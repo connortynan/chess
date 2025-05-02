@@ -349,14 +349,10 @@ namespace ui
             y++;
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Flip board", "F");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Undo/Redo", "u / r");
-            mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Offer draw", "O or =");
-            mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Resign", "R");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Underpromotion", "Ctrl+Space");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Quit", "Q");
             y++;
-            wattron(dialogue, A_REVERSE);
             mvwprintw(dialogue, y, 1, " Press [Cancel] key to return ");
-            wattroff(dialogue, A_REVERSE);
 
             wnoutrefresh(dialogue);
             doupdate();
@@ -623,11 +619,19 @@ namespace ui
             break;
 
         case State::MD_GAME_OVER:
+            for (int sq = 0; sq < 64; ++sq)
+            {
+                state.highlight_square(sq, color_pairs::TINT_NORMAL);
+            }
+            if (state.check_square >= 0)
+                state.highlight_square(state.check_square, color_pairs::TINT_RED);
+            if (state.last_move_from >= 0)
+                state.highlight_square(state.last_move_from, color_pairs::TINT_YELLOW);
+            if (state.last_move_to >= 0)
+                state.highlight_square(state.last_move_to, color_pairs::TINT_YELLOW);
             state.draw_sidebar();
             state.draw_board();
-            wattron(state.windows[W_SIDEBAR], A_REVERSE);
-            mvwprintw(state.windows[W_SIDEBAR], 3, 1, "Press Q to quit        ");
-            wattroff(state.windows[W_SIDEBAR], A_REVERSE);
+            mvwprintw(state.windows[W_SIDEBAR], 3, 1, "Press Q to quit       ");
             wnoutrefresh(state.windows[W_SIDEBAR]);
             break;
 

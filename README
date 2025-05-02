@@ -12,7 +12,8 @@ Fully functional 2 player chess, with ncurses UI.
  - `Shift+Q`
 
 ## Todo
- - Engine
+ - Undo/Redo moves in UI
+ - Draw conditions (50 move rule, insufficient material)
  - Offer Draw and Resign
  - Bug fix probably
 
