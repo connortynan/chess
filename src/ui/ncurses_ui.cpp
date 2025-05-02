@@ -10,7 +10,7 @@
 #include "engine/engine.hpp"
 #include "commands.hpp"
 
-static constexpr int ENGINE_DEPTH = 7;
+static constexpr int ENGINE_DEPTH = 6;
 
 namespace ui
 {

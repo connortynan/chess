@@ -70,84 +70,36 @@ namespace
         return attacks;
     }
 
-    u64 diag_attacks(int sq, u64 occupancy)
+    struct Magic
     {
-        int r = sq / 8, f = sq % 8;
-        u64 attacks = 0;
+        u64 mask;
+        u64 magic;
+        int shift;
+        u64 *attack_table;
+    };
 
-        // NE
-        for (int nr = r + 1, nf = f + 1; nr < 8 && nf < 8; ++nr, ++nf)
-        {
-            attacks |= (1ULL << (nr * 8 + nf));
-            if (occupancy & (1ULL << (nr * 8 + nf)))
-                break;
-        }
-        // NW
-        for (int nr = r + 1, nf = f - 1; nr < 8 && nf >= 0; ++nr, --nf)
-        {
-            attacks |= (1ULL << (nr * 8 + nf));
-            if (occupancy & (1ULL << (nr * 8 + nf)))
-                break;
-        }
-        // SE
-        for (int nr = r - 1, nf = f + 1; nr >= 0 && nf < 8; --nr, ++nf)
-        {
-            attacks |= (1ULL << (nr * 8 + nf));
-            if (occupancy & (1ULL << (nr * 8 + nf)))
-                break;
-        }
-        // SW
-        for (int nr = r - 1, nf = f - 1; nr >= 0 && nf >= 0; --nr, --nf)
-        {
-            attacks |= (1ULL << (nr * 8 + nf));
-            if (occupancy & (1ULL << (nr * 8 + nf)))
-                break;
-        }
+    // Magic rook_magics[64];
+    // Magic bishop_magics[64];
+#include "magic.inc"
 
-        return attacks;
+    u64 ortho_attacks(int square, u64 occupancy)
+    {
+        u64 blockers = occupancy & rook_magics[square].mask;
+        u64 index = (blockers * rook_magics[square].magic) >> rook_magics[square].shift;
+        return rook_magics[square].attack_table[index];
     }
 
-    u64 ortho_attacks(int sq, u64 occupancy)
+    u64 diag_attacks(int square, u64 occupancy)
     {
-        int r = sq / 8, f = sq % 8;
-        u64 attacks = 0;
-
-        // North
-        for (int nr = r + 1; nr < 8; ++nr)
-        {
-            attacks |= (1ULL << (nr * 8 + f));
-            if (occupancy & (1ULL << (nr * 8 + f)))
-                break;
-        }
-        // South
-        for (int nr = r - 1; nr >= 0; --nr)
-        {
-            attacks |= (1ULL << (nr * 8 + f));
-            if (occupancy & (1ULL << (nr * 8 + f)))
-                break;
-        }
-        // East
-        for (int nf = f + 1; nf < 8; ++nf)
-        {
-            attacks |= (1ULL << (r * 8 + nf));
-            if (occupancy & (1ULL << (r * 8 + nf)))
-                break;
-        }
-        // West
-        for (int nf = f - 1; nf >= 0; --nf)
-        {
-            attacks |= (1ULL << (r * 8 + nf));
-            if (occupancy & (1ULL << (r * 8 + nf)))
-                break;
-        }
-
-        return attacks;
+        u64 blockers = occupancy & bishop_magics[square].mask;
+        u64 index = (blockers * bishop_magics[square].magic) >> bishop_magics[square].shift;
+        return bishop_magics[square].attack_table[index];
     }
 }
 
 namespace chess
 {
-    void init_attacks()
+    static void init_attacks()
     {
         for (int sq = 0; sq < 64; ++sq)
         {

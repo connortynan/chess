@@ -49,6 +49,16 @@ $(MAIN_OBJ): $(MAIN_SRC)
 src/chess/zobrist.hpp: extra/zobrist_generator.cpp
 	@$(MAKE) gen_zobrist
 
+# Magic bitboard dependency
+src/chess/magic.inc: extra/magic_generator.cpp
+	@echo "Generating magic.inc..."
+	@mkdir -p src/chess
+	$(CXX) -std=c++17 -Wall -Wextra $< -o gen_magic.out
+	./gen_magic.out > src/chess/magic.inc
+	@rm -f gen_magic.out
+
+$(chess_OBJ): src/chess/magic.inc
+
 # Selectively build libraries with: make library-select LIBS="chess engine"
 library-select:
 	@$(MAKE) selected-libs LIB_LIST="$(LIBS)"
