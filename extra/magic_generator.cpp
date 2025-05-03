@@ -7,7 +7,7 @@
 //     {
 //         u64 blockers = occupancy & rook_magics[square].mask;
 //         u64 index = (blockers * rook_magics[square].magic) >> rook_magics[square].shift;
-//         return rook_magics[square].attack_table[index];
+//         return attack_pool[rook_magics[square].pool_index[index]];
 //     }
 // ```
 
@@ -18,7 +18,9 @@
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
+#include <sstream>
 #include <string>
+#include <unordered_map>
 
 using u64 = uint64_t;
 
@@ -27,9 +29,10 @@ struct Magic
     u64 mask;
     u64 magic;
     int shift;
-    const char *table_name;
+    const uint16_t *pool_indexes;
 };
 
+// Utility functions
 u64 random_u64()
 {
     return ((u64(rand()) & 0xFFFF) << 48) |
@@ -136,7 +139,6 @@ void generate_blocker_boards(u64 mask, std::vector<u64> &out)
     for (int i = 0; i < 64; ++i)
         if (mask & (1ULL << i))
             bits[n++] = i;
-
     int permutations = 1 << n;
     out.reserve(permutations);
     for (int i = 0; i < permutations; ++i)
@@ -149,18 +151,16 @@ void generate_blocker_boards(u64 mask, std::vector<u64> &out)
     }
 }
 
-u64 find_magic(int square, int bits, const std::vector<u64> &blockers, const std::vector<u64> &attacks)
+u64 find_magic(int bits, const std::vector<u64> &blockers, const std::vector<u64> &attacks)
 {
     int size = 1 << bits;
     std::vector<u64> table(size);
     std::vector<bool> used(size);
-
     while (true)
     {
         u64 magic = random_u64() & random_u64() & random_u64();
         std::fill(table.begin(), table.end(), 0);
         std::fill(used.begin(), used.end(), false);
-
         bool fail = false;
         for (size_t i = 0; i < blockers.size(); ++i)
         {
@@ -176,28 +176,32 @@ u64 find_magic(int square, int bits, const std::vector<u64> &blockers, const std
                 break;
             }
         }
-
         if (!fail)
             return magic;
     }
 }
 
-void write_all_magics()
+int get_or_add_attack(u64 attack, std::vector<u64> &pool, std::unordered_map<u64, int> &index_map)
 {
-    std::ostream &out = std::cout;
+    auto it = index_map.find(attack);
+    if (it != index_map.end())
+        return it->second;
+    int idx = pool.size();
+    pool.push_back(attack);
+    index_map[attack] = idx;
+    return idx;
+}
 
-    std::ostringstream rook_magics, bishop_magics;
+void write_all_magics(std::ostream &magics_out, std::ostream &attacks_out)
+{
+    std::vector<u64> pool;
+    std::unordered_map<u64, int> index_map;
 
-    out << "// Auto-generated magic bitboards and tables\n\n";
-    out << "#pragma once\n\n";
-    out << "#include <cstdint>\n\n";
-    out << "using u64 = uint64_t;\n\n";
+    std::ostringstream magics_decl_stream;
 
-    out << "// --- Attack tables ---\n\n";
-
-    auto write_piece = [&](const std::string &prefix, u64 (*mask_func)(int), u64 (*attack_func)(int, u64), std::ostringstream &magics_out)
+    auto write_piece = [&](const std::string &prefix, u64 (*mask_func)(int), u64 (*attack_func)(int, u64))
     {
-        magics_out << "static Magic " << prefix << "_magics[64] = {\n";
+        magics_decl_stream << "static Magic " << prefix << "_magics[64] = {\n";
 
         for (int sq = 0; sq < 64; ++sq)
         {
@@ -209,50 +213,84 @@ void write_all_magics()
             for (u64 b : blockers)
                 attacks.push_back(attack_func(sq, b));
 
-            u64 magic = find_magic(sq, bits, blockers, attacks);
+            u64 magic = find_magic(bits, blockers, attacks);
             int shift = 64 - bits;
 
-            std::string table_name = prefix + "_attacks_" + std::to_string(sq);
-            out << "static u64 " << table_name << "[] = {\n";
-            for (size_t i = 0; i < (1ULL << bits); ++i)
+            std::string index_name = prefix + "_pool_indexes_" + std::to_string(sq);
+
+            // Emit pool index array directly
+            magics_out << "static uint16_t " << index_name << "[] = {\n";
+            for (int i = 0; i < (1 << bits); ++i)
             {
-                if (i % 4 == 0)
-                    out << "    ";
-                u64 entry = 0;
+                if (i % 8 == 0)
+                    magics_out << "    ";
+                u64 val = 0;
                 for (size_t j = 0; j < blockers.size(); ++j)
                 {
-                    if (((blockers[j] * magic) >> (64 - bits)) == i)
+                    if (((blockers[j] * magic) >> (64 - bits)) == u64(i))
                     {
-                        entry = attacks[j];
+                        val = attacks[j];
                         break;
                     }
                 }
-                out << "0x" << std::hex << entry << "ULL, ";
-                if (i % 4 == 3)
-                    out << "\n";
+                int pool_idx = get_or_add_attack(val, pool, index_map);
+                magics_out << pool_idx << ", ";
+                if (i % 8 == 7)
+                    magics_out << "\n";
             }
-            if ((1 << bits) % 4 != 0)
-                out << "\n";
-            out << "};\n\n";
+            if ((1 << bits) % 8 != 0)
+                magics_out << "\n";
+            magics_out << "};\n\n";
 
-            magics_out << "    { 0x" << std::hex << mask << "ULL, 0x" << magic << "ULL, "
-                       << std::dec << shift << ", " << table_name << " },\n";
+            // Queue the Magic struct
+            magics_decl_stream << "    { 0x" << std::hex << mask << "ULL, 0x" << magic << "ULL, "
+                               << std::dec << shift << ", " << index_name << " },\n";
         }
 
-        magics_out << "};\n\n";
+        magics_decl_stream << "};\n\n";
     };
 
-    write_piece("rook", rook_mask, rook_attacks, rook_magics);
-    write_piece("bishop", bishop_mask, bishop_attacks, bishop_magics);
+    // Emit both rook and bishop data
+    write_piece("rook", rook_mask, rook_attacks);
+    write_piece("bishop", bishop_mask, bishop_attacks);
 
-    out << "// --- Magic arrays ---\n\n";
-    out << rook_magics.str();
-    out << bishop_magics.str();
+    // Write the magic arrays after all pool index arrays
+    magics_out << magics_decl_stream.str();
+
+    // Emit the attack pool
+    attacks_out << "// Auto generated with extra/magic_generator.cpp\n// DO NOT EDIT THIS FILE\n";
+    attacks_out << "{\n";
+    for (size_t i = 0; i < pool.size(); ++i)
+    {
+        if (i % 4 == 0)
+            attacks_out << "    ";
+        attacks_out << "0x" << std::hex << pool[i] << "ULL, ";
+        if (i % 4 == 3)
+            attacks_out << "\n";
+    }
+    if (pool.size() % 4 != 0)
+        attacks_out << "\n";
+    attacks_out << "}\n";
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc != 3)
+    {
+        std::cerr << "Usage: " << argv[0] << " <magics.inc> <magic_attacks.inc>\n";
+        return 1;
+    }
+
+    std::ofstream magics_file(argv[1]);
+    std::ofstream attacks_file(argv[2]);
+    if (!magics_file || !attacks_file)
+    {
+        std::cerr << "Failed to open output files.\n";
+        return 1;
+    }
+
     srand(time(0));
-    write_all_magics();
+    write_all_magics(magics_file, attacks_file);
+    std::cout << "Generated " << argv[1] << " and " << argv[2] << "\n";
     return 0;
 }

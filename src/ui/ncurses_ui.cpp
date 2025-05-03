@@ -9,8 +9,9 @@
 #include "chess/position.hpp"
 #include "engine/engine.hpp"
 #include "commands.hpp"
+#include <unistd.h>
 
-static constexpr int ENGINE_DEPTH = 6;
+static constexpr int ENGINE_DEPTH = 5;
 
 namespace ui
 {
@@ -83,6 +84,9 @@ namespace ui
         bool flip_board = false;
         chess::Move moves[256];
         int move_count = 0;
+
+        std::vector<chess::UndoState> undo_stack;
+        int viewed_ply = 0;
 
         chess::Game *game = nullptr;
         bool owns_game = false;
@@ -311,13 +315,28 @@ namespace ui
             int available_space = WINDOW_SIZES[W_SIDEBAR][0] - 10;
             int move_lines = (move_text.size() + 1) / 2;
             int first_move = std::max(0, move_lines - available_space);
+            int last_ply = 2 * first_move + 1;
 
             for (int i = first_move; i < move_lines; ++i)
             {
-                std::string white_move = move_text[2 * i];
-                std::string black_move = (2 * i + 1 < (int)move_text.size()) ? move_text[2 * i + 1] : " ";
+                mvwprintw(sidebar, y, 1, "%3d: ", i + 1);
 
-                mvwprintw(sidebar, y++, 1, "%3d: %-7s %-7s", i + 1, white_move.c_str(), black_move.c_str());
+                if (last_ply == viewed_ply)
+                    wattron(sidebar, A_REVERSE);
+                mvwprintw(sidebar, y, 6, "%s", move_text[2 * i].c_str());
+                if (last_ply == viewed_ply)
+                    wattroff(sidebar, A_REVERSE);
+                last_ply++;
+
+                if (i * 2 + 1 >= (int)move_text.size())
+                    break;
+                if (last_ply == viewed_ply)
+                    wattron(sidebar, A_REVERSE);
+                mvwprintw(sidebar, y, 15, "%s", move_text[2 * i + 1].c_str());
+                if (last_ply == viewed_ply)
+                    wattroff(sidebar, A_REVERSE);
+                last_ply++;
+                y++;
             }
             y = 21;
 
@@ -677,6 +696,7 @@ namespace ui
     // return true if the game is over
     static bool make_move(chess::Move m)
     {
+        state.undo_stack.clear();
         state.game->make_move(m);
         std::string move_text = chess::move::to_string(m);
 
@@ -695,13 +715,18 @@ namespace ui
             move_text += (state.move_count > 0) ? "+" : "#";
         }
 
+        if ((int)state.move_text.size() > state.viewed_ply)
+        {
+            state.move_text.erase(state.move_text.begin() + state.viewed_ply, state.move_text.end());
+        }
         state.move_text.push_back(move_text);
         state.last_move_from = chess::move::from(m);
         state.last_move_to = chess::move::to(m);
+        state.viewed_ply++;
 
         state.update();
 
-        return state.move_count > 0;
+        return state.move_count > 0 || state.game->is_draw();
     }
 
     static bool engine_turn()
@@ -714,6 +739,7 @@ namespace ui
             state.draw_sidebar();
             doupdate();
             int eval = 0;
+            usleep(100000); // sleep for 100ms to simulate thinking time
             chess::Move engine_move = chess::engine::solve(*state.game, ENGINE_DEPTH, &eval);
             if (!engine_move)
             {
@@ -726,11 +752,13 @@ namespace ui
             {
                 state.mode = State::MD_GAME_OVER;
                 bool check = state.game->position.king_checked(state.game->position.turn());
-                state.status = check
-                                   ? (state.game->position.turn() == chess::Color::WHITE
-                                          ? "Checkmate! Black wins!"
-                                          : "Checkmate! White wins!")
-                                   : "Stalemate!";
+                state.status = state.game->is_draw()
+                                   ? "Draw!"
+                                   : (check
+                                          ? (state.game->position.turn() == chess::Color::WHITE
+                                                 ? "Checkmate! Black wins!"
+                                                 : "Checkmate! White wins!")
+                                          : "Stalemate!");
                 display();
                 return false;
             }
@@ -879,10 +907,56 @@ namespace ui
             }
             break;
         case CMD_UNDO:
-            // todo
+            if (state.mode != State::MD_HELP)
+            {
+                if (state.viewed_ply == 0)
+                {
+                    beep();
+                    break;
+                }
+                chess::Move viewed_move;
+                do
+                {
+                    viewed_move = state.game->history.back().move;
+                    state.undo_stack.push_back(state.game->history.back());
+                    state.game->undo_move();
+                    --state.viewed_ply;
+                } while (state.game->position.turn() == chess::Color::WHITE ? state.white_engine : state.black_engine);
+
+                if (state.game->position.king_checked(state.game->position.turn()))
+                    state.check_square = __builtin_ctzll(state.game->position.pieces[(u8)state.game->position.turn()][(u8)chess::PieceType::KING]);
+                else
+                    state.check_square = -1;
+                state.last_move_from = chess::move::from(viewed_move);
+                state.last_move_to = chess::move::to(viewed_move);
+                state.mode = State::MD_SELECT;
+                state.update();
+            }
             break;
         case CMD_REDO:
-            // todo
+            if (state.mode != State::MD_HELP)
+            {
+                if (state.undo_stack.empty())
+                {
+                    beep();
+                    break;
+                }
+                do
+                {
+                    chess::UndoState undo = state.undo_stack.back();
+                    state.undo_stack.pop_back();
+                    state.game->make_move(undo.move);
+                    state.viewed_ply++;
+                    if (state.game->position.king_checked(state.game->position.turn()))
+                        state.check_square = __builtin_ctzll(state.game->position.pieces[(u8)state.game->position.turn()][(u8)chess::PieceType::KING]);
+                    else
+                        state.check_square = -1;
+                    state.last_move_from = chess::move::from(undo.move);
+                    state.last_move_to = chess::move::to(undo.move);
+                } while (state.game->position.turn() == chess::Color::WHITE ? state.white_engine : state.black_engine);
+                state.mode = State::MD_SELECT;
+                state.update();
+            }
             break;
         default:
             break;

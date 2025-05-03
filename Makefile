@@ -49,12 +49,12 @@ $(MAIN_OBJ): $(MAIN_SRC)
 src/chess/zobrist.hpp: extra/zobrist_generator.cpp
 	@$(MAKE) gen_zobrist
 
-# Magic bitboard dependency
-src/chess/magic.inc: extra/magic_generator.cpp
-	@echo "Generating magic.inc..."
+# Magic bitboard dependencies
+src/chess/magic.inc src/chess/magic_attacks.inc: extra/magic_generator.cpp
+	@echo "Generating magic.inc and magic_attacks.inc..."
 	@mkdir -p src/chess
 	$(CXX) -std=c++17 -Wall -Wextra $< -o gen_magic.out
-	./gen_magic.out > src/chess/magic.inc
+	./gen_magic.out src/chess/magic.inc src/chess/magic_attacks.inc
 	@rm -f gen_magic.out
 
 $(chess_OBJ): src/chess/magic.inc

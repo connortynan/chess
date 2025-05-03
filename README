@@ -12,14 +12,14 @@ Fully functional 2 player chess, with ncurses UI.
  - `Shift+Q`
 
 ## Todo
- - Undo/Redo moves in UI
- - Bug fix probably
+ - Manual move list scroll
+ - Maybe find a better way to import magic?
 
 ---
 
 ## Build instruction
 ```bash
-# navigate to root direcotry (with Makefile)
+# navigate to root directory (with Makefile)
 make
 ```
 

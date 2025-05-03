@@ -37,6 +37,8 @@ namespace chess
         position.from_fen();
         history.clear();
         moves.clear();
+        seen_positions.clear();
+        seen_positions[position.hash()] = 1;
     }
 
     bool Game::is_draw() const

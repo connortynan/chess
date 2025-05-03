@@ -75,25 +75,29 @@ namespace
         u64 mask;
         u64 magic;
         int shift;
-        u64 *attack_table;
+        u16 *pool_indexes;
     };
 
     // Magic rook_magics[64];
     // Magic bishop_magics[64];
 #include "magic.inc"
 
-    u64 ortho_attacks(int square, u64 occupancy)
+    u64 attack_pool[] = // holds all the unique attacks for the rook and bishop magics
+#include "magic_attacks.inc"
+        ;
+
+    u64 ortho_attacks(int sq, u64 occupancy)
     {
-        u64 blockers = occupancy & rook_magics[square].mask;
-        u64 index = (blockers * rook_magics[square].magic) >> rook_magics[square].shift;
-        return rook_magics[square].attack_table[index];
+        u64 blockers = occupancy & rook_magics[sq].mask;
+        u64 index = (blockers * rook_magics[sq].magic) >> rook_magics[sq].shift;
+        return attack_pool[rook_magics[sq].pool_indexes[index]];
     }
 
-    u64 diag_attacks(int square, u64 occupancy)
+    u64 diag_attacks(int sq, u64 occupancy)
     {
-        u64 blockers = occupancy & bishop_magics[square].mask;
-        u64 index = (blockers * bishop_magics[square].magic) >> bishop_magics[square].shift;
-        return bishop_magics[square].attack_table[index];
+        u64 blockers = occupancy & bishop_magics[sq].mask;
+        u64 index = (blockers * bishop_magics[sq].magic) >> bishop_magics[sq].shift;
+        return attack_pool[bishop_magics[sq].pool_indexes[index]];
     }
 }
 
