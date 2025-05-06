@@ -11,7 +11,7 @@
 #include "commands.hpp"
 #include <unistd.h>
 
-static constexpr int ENGINE_DEPTH = 7;
+static constexpr int ENGINE_DEPTH = 6;
 
 namespace ui
 {
@@ -711,18 +711,14 @@ namespace ui
     static bool make_move(chess::Move m)
     {
         state.undo_stack.clear();
+        std::string move_text = state.game->position.algebraic_notation(m);
         state.game->make_move(m);
-        std::string move_text = chess::move::to_string(m);
 
         state.move_count = chess::get_moves(state.game->position, state.moves);
         bool check = state.game->position.king_checked(state.game->position.turn());
 
         state.check_square = -1;
 
-        if (chess::move::is_promotion(m))
-        {
-            move_text += "pnbrqk"[chess::move::promo_piece_index(m)];
-        }
         if (check)
         {
             state.check_square = __builtin_ctzll(state.game->position.pieces[(u8)state.game->position.turn()][(u8)chess::PieceType::KING]);

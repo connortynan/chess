@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <sstream>
 
 namespace
 {
@@ -464,5 +465,104 @@ namespace chess
         }
 
         return move_count;
+    }
+
+    std::string Position::algebraic_notation(const Move &m) const
+    {
+        if (move::is_castle_kingside(m))
+            return "O-O";
+        if (move::is_castle_queenside(m))
+            return "O-O-O";
+
+        const Color us = turn();
+        const u8 from_sq = move::from(m);
+        const u8 to_sq = move::to(m);
+        const char files[] = "abcdefgh";
+        const char ranks[] = "12345678";
+
+        std::ostringstream ss;
+
+        // Identify piece being moved
+        PieceType pt = PieceType::PAWN;
+        for (int i = 0; i < 6; ++i)
+        {
+            if (pieces[(u8)us][i] & (1ULL << from_sq))
+            {
+                pt = (PieceType)i;
+                break;
+            }
+        }
+
+        if (pt != PieceType::PAWN)
+            ss << "PNBRQK"[(int)pt];
+
+        u64 attackers;
+        switch (pt)
+        {
+        case PieceType::PAWN:
+            attackers = pawn_attacks[1 ^ (u8)us][to_sq];
+            break;
+        case PieceType::KNIGHT:
+            attackers = knight_attacks[to_sq];
+            break;
+        case PieceType::BISHOP:
+            attackers = diag_attacks(to_sq, all_occupancy);
+            break;
+        case PieceType::ROOK:
+            attackers = ortho_attacks(to_sq, all_occupancy);
+            break;
+        case PieceType::QUEEN:
+            attackers = diag_attacks(to_sq, all_occupancy) | ortho_attacks(to_sq, all_occupancy);
+            break;
+        case PieceType::KING:
+            attackers = king_attacks[to_sq];
+            break;
+        default:
+            assert(false);
+            return "";
+        }
+
+        attackers &= ~(1ULL << from_sq); // remove the moving square
+
+        // If there are no ambiguous moves, we can skip the disambiguation
+        if (attackers)
+        {
+            bool same_file = false;
+            bool same_rank = false;
+            while (attackers)
+            {
+                u8 sq = __builtin_ctzll(attackers);
+                attackers &= attackers - 1;
+                if (sq % 8 == from_sq % 8)
+                    same_file = true;
+                if (sq / 8 == from_sq / 8)
+                    same_rank = true;
+                if (same_file && same_rank)
+                    break;
+            }
+
+            if (same_file)
+                ss << files[from_sq % 8];
+            if (same_rank)
+                ss << ranks[from_sq / 8];
+        }
+
+        // Captures
+        if (move::is_capture(m))
+        {
+            if (pt == PieceType::PAWN)
+                ss << files[from_sq % 8]; // pawn file
+            ss << 'x';
+        }
+
+        // Destination square
+        ss << files[to_sq % 8];
+        ss << ranks[to_sq / 8];
+
+        // Promotions
+        if (move::is_promotion(m))
+            ss << '=' << "PNBRQ"[move::promo_piece_index(m)];
+
+        return ss.str();
     }
 } // namespace chess

@@ -68,6 +68,7 @@ namespace chess
 
         inline constexpr u32 fullmove_number() const { return (ply / 2) + 1; }
         inline constexpr Color turn() const { return static_cast<Color>(ply & 1); }
+        std::string algebraic_notation(const Move &move) const;
 
         void compute_occupancy();
         void compute_attacks();
