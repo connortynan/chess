@@ -80,6 +80,7 @@ gen_zobrist: extra/zobrist_generator.cpp
 # Clean build artifacts
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	rm -f src/chess/magic.inc src/chess/magic_attacks.inc
 
 # TAR packaging
 tar: clean

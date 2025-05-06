@@ -2,19 +2,13 @@
 
 ## About
 
-Fully functional 2 player chess, with ncurses UI.
-
-## Controls
- - Move around with `WASD`, arrow keys, or vim controls (`HJKL`)
- - Select with `Enter` or `Space`
- - Deselect with `Delete`, `Backspace` (or select an invalid square)
- - `Shift+F` to flip board
- - `Shift+Q`
+Fully functional chess with a built in engine, with ncurses UI. Press '?' for controls once in game.
 
 ## Todo
  - Manual move list scroll
  - Maybe find a better way to import magic?
  - Check if draw conditions are being checked properly
+ - Algebraic notation + PGN export
 
 ---
 

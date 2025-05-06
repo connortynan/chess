@@ -11,7 +11,7 @@
 #include "commands.hpp"
 #include <unistd.h>
 
-static constexpr int ENGINE_DEPTH = 5;
+static constexpr int ENGINE_DEPTH = 7;
 
 namespace ui
 {
@@ -299,6 +299,12 @@ namespace ui
             int eval = 0;
             get_material_string(white_mat, black_mat, eval);
 
+            if (flip_board)
+            {
+                std::swap(white_mat, black_mat);
+                eval = -eval;
+            }
+
             // Top material
             mvwprintw(sidebar, y++, 1, "%-18s %+3d", white_mat.c_str(), eval);
 
@@ -369,7 +375,7 @@ namespace ui
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Flip board", "F");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Undo/Redo", "u / r");
             mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Underpromotion", "Ctrl+Space");
-            mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Quit", "Q");
+            mvwprintw(dialogue, y++, 1, " %-14s %30s ", "Quit", "Q or Ctrl+C");
             y++;
             mvwprintw(dialogue, y, 1, " Press [Cancel] key to return ");
 
@@ -402,6 +408,10 @@ namespace ui
                 int ch = getch();
                 switch (ch)
                 {
+                case 'q':
+                case 'Q':
+                    running = false;
+                    return;
                 case '1': // player vs player
                     white_engine = false;
                     black_engine = false;
@@ -444,6 +454,10 @@ namespace ui
                 int ch = getch();
                 switch (ch)
                 {
+                case 'q':
+                case 'Q':
+                    running = false;
+                    return;
                 case 'w':
                 case 'W':
                     white_engine = false;
