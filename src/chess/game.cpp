@@ -16,7 +16,6 @@ namespace chess
     std::size_t Game::get_moves(Move *moves)
     {
         position.compute_occupancy();
-        position.compute_attacks();
         return ::chess::get_moves(position, moves);
     }
 

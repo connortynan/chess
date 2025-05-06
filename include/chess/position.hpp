@@ -52,7 +52,6 @@ namespace chess
         u64 pieces[2][6];
         u64 occupancy[2];
         u64 all_occupancy;
-        u64 attacks[2];
 
         u8 castling_rights;
         i8 en_passant_square = -1;
@@ -71,15 +70,15 @@ namespace chess
         std::string algebraic_notation(const Move &move) const;
 
         void compute_occupancy();
-        void compute_attacks();
         bool validate_occupancy() const;
+        bool square_attacked(Color us, u8 square) const;
+        u64 attacked_squares(Color us, u64 bb = ~(0ULL)) const;
         bool king_checked(Color us) const;
 
         inline u64 get_piece_bb(Color c, PieceType pt) const { return pieces[static_cast<u8>(c)][static_cast<u8>(pt)]; }
         inline bool is_occupied(u8 square) const { return all_occupancy & (1ULL << square); }
         inline bool is_occupied(Color c, u8 square) const { return occupancy[static_cast<u8>(c)] & (1ULL << square); }
         inline bool is_occupied(Color c, PieceType pt, u8 square) const { return get_piece_bb(c, pt) & (1ULL << square); }
-        inline bool is_attacked(u8 square, Color by_color) const { return attacks[static_cast<u8>(by_color)] & (1ULL << square); }
     };
 
     std::size_t get_moves(const Position &pos, Move *moves);

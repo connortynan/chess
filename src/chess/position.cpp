@@ -99,7 +99,6 @@ namespace chess
         halfmove_clock = halfmove;
 
         compute_occupancy();
-        compute_attacks();
     }
 
     std::string Position::to_fen() const
@@ -368,7 +367,6 @@ namespace chess
         if (recompute)
         {
             compute_occupancy();
-            compute_attacks();
         }
     }
 
@@ -478,7 +476,6 @@ namespace chess
         if (recompute)
         {
             compute_occupancy();
-            compute_attacks();
         }
     }
 

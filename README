@@ -8,7 +8,8 @@ Fully functional chess with a built in engine, with ncurses UI. Press '?' for co
  - Manual move list scroll
  - Maybe find a better way to import magic?
  - Check if draw conditions are being checked properly
- - Algebraic notation + PGN export
+ - PGN export
+ - Update CHANGELOG
 
 ---
 

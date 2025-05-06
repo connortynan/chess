@@ -120,71 +120,63 @@ namespace chess
         AttackInit() { init_attacks(); }
     } _attack_init; // to ensure attacks are initialized
 
-    void Position::compute_attacks()
+    u64 Position::attacked_squares(Color us, u64 mask) const
     {
-        attacks[0] = 0;
-        attacks[1] = 0;
+        u64 result = mask;
 
-        for (int color = 0; color < 2; ++color)
+        u8 them = 1 ^ (u8)us;
+        while (mask)
         {
-            for (int pt = 0; pt < 6; ++pt)
-            {
-                u64 bb = pieces[color][pt];
-                while (bb)
-                {
-                    u8 sq = __builtin_ctzll(bb);
-                    bb &= bb - 1;
+            u8 sq = __builtin_ctzll(mask);
+            mask &= mask - 1;
 
-                    switch (static_cast<PieceType>(pt))
-                    {
-                    case PieceType::PAWN:
-                        attacks[color] |= pawn_attacks[color][sq];
-                        break;
-                    case PieceType::KNIGHT:
-                        attacks[color] |= knight_attacks[sq];
-                        break;
-                    case PieceType::BISHOP:
-                        attacks[color] |= diag_attacks(sq, all_occupancy);
-                        break;
-                    case PieceType::ROOK:
-                        attacks[color] |= ortho_attacks(sq, all_occupancy);
-                        break;
-                    case PieceType::QUEEN:
-                        attacks[color] |= diag_attacks(sq, all_occupancy);
-                        attacks[color] |= ortho_attacks(sq, all_occupancy);
-                        break;
-                    case PieceType::KING:
-                        attacks[color] |= king_attacks[sq];
-                        break;
-                    }
-                }
-            }
+            if (pawn_attacks[(int)us][sq] & pieces[them][(int)PieceType::PAWN])
+                continue;
+            if (knight_attacks[sq] & pieces[them][(int)PieceType::KNIGHT])
+                continue;
+            if (king_attacks[sq] & pieces[them][(int)PieceType::KING])
+                continue;
+            u64 diag = diag_attacks(sq, all_occupancy);
+            if (diag & (pieces[them][(int)PieceType::BISHOP] | pieces[them][(int)PieceType::QUEEN]))
+                continue;
+            u64 ortho = ortho_attacks(sq, all_occupancy);
+            if (ortho & (pieces[them][(int)PieceType::ROOK] | pieces[them][(int)PieceType::QUEEN]))
+                continue;
+
+            // if we reach here, the square is not attacked by any of the opponent's pieces
+            result &= ~(1ULL << sq);
         }
+        return result;
     }
 
-    bool Position::king_checked(Color us) const
+    bool Position::square_attacked(Color us, u8 sq) const
     {
         u8 them = 1 ^ (u8)us;
 
-        assert(__builtin_popcountll(pieces[(u8)us][(u8)PieceType::KING]) == 1);
-        u8 king_sq = __builtin_ctzll(pieces[(u8)us][(u8)PieceType::KING]);
-
-        if (pawn_attacks[(int)us][king_sq] & pieces[them][(int)PieceType::PAWN])
+        if (pawn_attacks[(int)us][sq] & pieces[them][(int)PieceType::PAWN])
             return true;
-        if (knight_attacks[king_sq] & pieces[them][(int)PieceType::KNIGHT])
+        if (knight_attacks[sq] & pieces[them][(int)PieceType::KNIGHT])
             return true;
-        if (king_attacks[king_sq] & pieces[them][(int)PieceType::KING])
+        if (king_attacks[sq] & pieces[them][(int)PieceType::KING])
             return true;
 
-        u64 diag = diag_attacks(king_sq, all_occupancy);
+        u64 diag = diag_attacks(sq, all_occupancy);
         if (diag & (pieces[them][(int)PieceType::BISHOP] | pieces[them][(int)PieceType::QUEEN]))
             return true;
 
-        u64 ortho = ortho_attacks(king_sq, all_occupancy);
+        u64 ortho = ortho_attacks(sq, all_occupancy);
         if (ortho & (pieces[them][(int)PieceType::ROOK] | pieces[them][(int)PieceType::QUEEN]))
             return true;
 
         return false;
+    }
+
+    bool Position::king_checked(Color us) const
+    {
+        assert(__builtin_popcountll(pieces[(u8)us][(u8)PieceType::KING]) == 1);
+        u8 king_sq = __builtin_ctzll(pieces[(u8)us][(u8)PieceType::KING]);
+
+        return square_attacked(us, king_sq);
     }
 
     static bool is_valid(Move move, const Position &pos, Color us, PieceType piece)
@@ -203,7 +195,7 @@ namespace chess
 
         int king_sq = (piece == PieceType::KING) ? move::to(move) : __builtin_ctzll(pos.pieces[(u8)us][(u8)PieceType::KING]);
 
-        u64 mask = ~0ULL; // mask out the peices that have been captured at each stetp in cases of the checking piece being captured
+        u64 mask = ~0ULL; // mask out the peices that have been captured at each step in cases of the checking piece being captured
         if (move::is_capture(move))
             mask &= ~(1ULL << move::to(move));
         if (move::is_en_passant(move))
@@ -446,7 +438,7 @@ namespace chess
                 // Squares between king and rook must be empty
                 if (!(pos.all_occupancy & ((1ULL << (from + 1)) | (1ULL << (from + 2))))
                     // and squares king moves across must not be attacked
-                    && !(pos.attacks[(u8)them] & ((1ULL << (from)) | (1ULL << (from + 1)) | (1ULL << (from + 2)))))
+                    && !(pos.attacked_squares(them, (1ULL << (from)) | (1ULL << (from + 1)) | (1ULL << (from + 2)))))
                 {
                     add(move::make(from, from + 2, move::flags::KING_CASTLE), PieceType::KING);
                 }
@@ -457,7 +449,7 @@ namespace chess
                 // Squares between king and rook must be empty
                 if (!(pos.all_occupancy & ((1ULL << (from - 1)) | (1ULL << (from - 2)) | (1ULL << (from - 3))))
                     // and squares king moves across must not be attacked
-                    && !(pos.attacks[(u8)them] & ((1ULL << (from)) | (1ULL << (from - 1)) | (1ULL << (from - 2)))))
+                    && !(pos.attacked_squares(them, (1ULL << (from)) | (1ULL << (from - 1)) | (1ULL << (from - 2)))))
                 {
                     add(move::make(from, from - 2, move::flags::QUEEN_CASTLE), PieceType::KING);
                 }
@@ -496,33 +488,31 @@ namespace chess
         if (pt != PieceType::PAWN)
             ss << "PNBRQK"[(int)pt];
 
-        u64 attackers;
+        u64 attackers = pieces[(u8)us][(u8)pt] & ~(1ULL << from_sq); // all other pieces of the same type
         switch (pt)
         {
         case PieceType::PAWN:
-            attackers = pawn_attacks[1 ^ (u8)us][to_sq];
+            attackers = 0; // pawns are not ambiguous
             break;
         case PieceType::KNIGHT:
-            attackers = knight_attacks[to_sq];
+            attackers &= knight_attacks[to_sq];
             break;
         case PieceType::BISHOP:
-            attackers = diag_attacks(to_sq, all_occupancy);
+            attackers &= diag_attacks(to_sq, all_occupancy);
             break;
         case PieceType::ROOK:
-            attackers = ortho_attacks(to_sq, all_occupancy);
+            attackers &= ortho_attacks(to_sq, all_occupancy);
             break;
         case PieceType::QUEEN:
-            attackers = diag_attacks(to_sq, all_occupancy) | ortho_attacks(to_sq, all_occupancy);
+            attackers &= diag_attacks(to_sq, all_occupancy) | ortho_attacks(to_sq, all_occupancy);
             break;
         case PieceType::KING:
-            attackers = king_attacks[to_sq];
+            attackers &= king_attacks[to_sq];
             break;
         default:
             assert(false);
             return "";
         }
-
-        attackers &= ~(1ULL << from_sq); // remove the moving square
 
         // If there are no ambiguous moves, we can skip the disambiguation
         if (attackers)
@@ -541,10 +531,12 @@ namespace chess
                     break;
             }
 
-            if (same_file)
+            if (!same_file && !same_rank)
                 ss << files[from_sq % 8];
-            if (same_rank)
+            else if (same_file && !same_rank)
                 ss << ranks[from_sq / 8];
+            else
+                ss << files[from_sq % 8] << ranks[from_sq / 8];
         }
 
         // Captures
