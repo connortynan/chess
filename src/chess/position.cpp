@@ -221,7 +221,7 @@ namespace chess
         return h;
     }
 
-    void Position::make_move(const Move &m, bool recompute)
+    void Position::make_move(const Move &m)
     {
         Color us = turn();              // side to move
         Color them = Color(1 ^ (u8)us); // opponent
@@ -364,13 +364,10 @@ namespace chess
         // Next ply
         ply += 1;
 
-        if (recompute)
-        {
-            compute_occupancy();
-        }
+        compute_occupancy();
     }
 
-    void Position::make_move(const Move &m, UndoState &undo, bool recompute)
+    void Position::make_move(const Move &m, UndoState &undo)
     {
         undo.move = m;
         undo.castling_rights = castling_rights;
@@ -410,10 +407,10 @@ namespace chess
             }
         }
 
-        make_move(m, recompute);
+        make_move(m);
     }
 
-    void Position::undo_move(const UndoState &undo, bool recompute)
+    void Position::undo_move(const UndoState &undo)
     {
         ply -= 1;
 
@@ -473,10 +470,7 @@ namespace chess
             }
         }
 
-        if (recompute)
-        {
-            compute_occupancy();
-        }
+        compute_occupancy();
     }
 
     bool Position::validate_occupancy() const

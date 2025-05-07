@@ -4,12 +4,13 @@
 #include <list>
 #include <ncurses.h>
 #include <cassert>
+#include <unistd.h>
+#include <fstream>
 
 #include "chess/inttypes.hpp"
 #include "chess/position.hpp"
 #include "engine/engine.hpp"
 #include "commands.hpp"
-#include <unistd.h>
 
 static constexpr int ENGINE_DEPTH = 6;
 
@@ -582,6 +583,15 @@ namespace ui
 
     void cleanup()
     {
+        if (state.game)
+        {
+            std::ofstream pgn_out("game.pgn");
+            if (pgn_out)
+            {
+                pgn_out << state.game->export_pgn();
+            }
+        }
+
         state.running = false;
         if (state.owns_game)
             delete state.game;

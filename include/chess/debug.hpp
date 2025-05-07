@@ -6,6 +6,8 @@
 #include <chrono>
 #include <string>
 
+#include "chess/position.hpp"
+
 namespace chess
 {
     inline const char piece_char[2][6] = {
@@ -97,13 +99,9 @@ namespace chess
         for (size_t i = 0; i < move_count; ++i)
         {
             UndoState undo;
-            pos.make_move(moves[i], undo, /*recompute=*/false); // Fast make_move without recomputing attacks
-            pos.compute_occupancy();                            // Just update occupancy (enough for legal move generation)
-
+            pos.make_move(moves[i], undo); // Fast make_move without recomputing attacks
             nodes += perft(pos, depth - 1);
-
-            pos.undo_move(undo, /*recompute=*/false);
-            pos.compute_occupancy(); // Restore occupancy
+            pos.undo_move(undo);
         }
 
         return nodes;

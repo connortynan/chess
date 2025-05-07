@@ -20,7 +20,10 @@ namespace chess
             seen_positions[position.hash()] = 1;
         }
 
-        std::size_t get_moves(Move *moves);
+        static Game import_pgn(const std::string &pgn);
+        std::string export_pgn() const;
+
+        std::size_t get_moves(Move *moves) const;
         void make_move(Move m);
         void undo_move();
         void reset();

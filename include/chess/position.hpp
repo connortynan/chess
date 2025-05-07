@@ -58,9 +58,9 @@ namespace chess
         u32 halfmove_clock = 0;
         u32 ply = 0;
 
-        void make_move(const Move &move, bool recompute = true);
-        void make_move(const Move &move, UndoState &undo, bool recompute = true); // creates undo to save state
-        void undo_move(const UndoState &undo, bool recompute = true);
+        void make_move(const Move &move);
+        void make_move(const Move &move, UndoState &undo); // creates undo to save state
+        void undo_move(const UndoState &undo);
         u64 hash() const;
         std::string to_fen() const;
         void from_fen(const std::string &fen = default_fen);
