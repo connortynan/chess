@@ -1,5 +1,28 @@
 ## Most recent at top
 
+5/7/25, 12:30 AM:
+    - Added PGN export when exiting game
+    - Added PGN import, currently unused in UI
+
+5/6/25, 12:30 PM:
+    - Added algebraic move notation (e.g. e4 e5 Nf3 Nc6)
+    - Updated UI sidebar to use algebraic notation
+
+5/3/25, 1:30 AM:
+    - Added undo and redo to UI
+    - Compress magic bitboard attack table
+
+5/2/25, 1:30 AM:
+    - Added magic bitboards for constant time sliding move lookup (plus 16k+ lines of generated code)
+
+5/1/25, 10:00 PM:
+    - Fixed bug in engine evaluation that caused it to play the worst move possible as black
+    - Fixed game over in UI to show last move properly 
+    - Inital draw evaluation (3 fold repetition and 50 move rule)
+
+5/1/25, 5:00 PM:
+    - Engine prototype complete
+
 4/30/25, 12:30 PM:
     - Added move list and material counts to sidebar
 

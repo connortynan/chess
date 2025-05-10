@@ -9,7 +9,6 @@ Fully functional chess with a built in engine, with ncurses UI. Press '?' for co
  - Maybe find a better way to import magic?
  - Check if draw conditions are being checked properly
  - PGN save/load from UI
- - Update CHANGELOG
 
 ---
 
@@ -22,9 +21,4 @@ make
 ## Usage
 ```bash
 bin/chess-engine
-```
-
-## Uninstall
-```bash
-make clean
 ```
